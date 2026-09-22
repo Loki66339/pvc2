@@ -1,0 +1,30 @@
+name: RDP Hardened Simple
+
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Download ngrok
+        run: Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
+      - name: Extract ngrok
+        run: Expand-Archive ngrok.zip -Force
+      - name: Auth ngrok
+        run: .\ngrok\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
+        env:
+          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+      - name: Enable RDP
+        shell: cmd
+        run: |
+          reg add "HKLM\System\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
+          reg add "HKLM\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp" /v UserAuthentication /t REG_DWORD /d 1 /f
+          netsh advfirewall firewall set rule group="remote desktop" new enable=Yes
+      - name: Set Password
+        shell: cmd
+        run: net user runneradmin "Forenzyra#2026!Kx9mZ4pL"
+      - name: Set Lockout
+        shell: cmd
+        run: net accounts /lockoutthreshold:5 /lockoutduration:30 /lockoutwindow:30
+      - name: Create Tunnel
+        run: .\ngrok\ngrok.exe tcp 3389
